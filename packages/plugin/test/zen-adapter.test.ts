@@ -64,3 +64,34 @@ test('ZenAdapter constructs the responses provider alongside chat', () => {
   const adapter = new ZenAdapter(new ModelCatalog())
   assert.equal(typeof adapter.stream, 'function')
 })
+
+test('responses models use the wider body-idle window, injectable for tests', async () => {
+  // A provider that emits `start` immediately, then never speaks again: the
+  // stream can only end through the body-idle watchdog, so the surfaced
+  // error's arrival time measures the window actually applied per model.
+  async function* hangAfterStart(): AsyncGenerator<{ type: string; partial: unknown }> {
+    yield { type: 'start', partial: { content: [] } }
+    await new Promise(() => {})
+  }
+  const measure = async (model: string) => {
+    const adapter = new ZenAdapter(
+      { list: () => [], decision: () => ({ allowed: true, source: 'test', known: true }) },
+      { providerOverride: { streamSimple: () => hangAfterStart() }, firstEventMs: 50, bodyIdleMs: 50, responsesBodyIdleMs: 400 },
+    )
+    const began = Date.now()
+    let reason: { kind: string } | undefined
+    for await (const chunk of adapter.stream({ provider: 'opencode2dsh', model, messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }] })) {
+      if (chunk.type === 'finish') {
+        reason = chunk.reason as { kind: string }
+        break
+      }
+    }
+    return { reason, elapsed: Date.now() - began }
+  }
+  const chat = await measure('big-pickle')
+  assert.equal(chat.reason?.kind, 'error')
+  assert.ok(chat.elapsed < 200, `chat should honor the injected 50ms window, took ${chat.elapsed}ms`)
+  const responses = await measure('muse-spark-1.2-contributor-free')
+  assert.equal(responses.reason?.kind, 'error')
+  assert.ok(responses.elapsed > 350, `responses should honor the injected 400ms window, took ${responses.elapsed}ms`)
+})

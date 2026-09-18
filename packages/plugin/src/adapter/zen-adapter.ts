@@ -54,6 +54,14 @@ export const WATCHDOG_IDLE_MESSAGE = 'opencode2dsh: stream body idle timeout (ex
 /** Default watchdog windows (docs/ip-pool.md; test-injectable via constructor). */
 export const DEFAULT_FIRST_EVENT_MS = 30_000
 export const DEFAULT_BODY_IDLE_MS = 120_000
+/**
+ * Body-idle window for Responses models (muse-spark-*, issue #7): their
+ * chain-of-thought streams pace in bursts with long mid-stream pauses, so
+ * the chat default misreads slow reasoning as a dead tunnel. Named and
+ * constructor-injectable so tests can exercise the wider window without
+ * waiting out five real minutes.
+ */
+export const RESPONSES_BODY_IDLE_MS = 300_000
 
 /** The terminal error event pi-ai owes but never sent (watchdog teardown). */
 function terminalErrorEvent(errorMessage: string, model: Model<Api>): PiEvent {
@@ -102,6 +110,7 @@ export class ZenAdapter {
   readonly #responsesProvider: { streamSimple(model: unknown, context: unknown, options: unknown): unknown } | null
   readonly #firstEventMs: number
   readonly #bodyIdleMs: number
+  readonly #responsesBodyIdleMs: number
 
   constructor(catalog: CatalogLike, options: {
     zenBaseUrl?: string
@@ -109,10 +118,13 @@ export class ZenAdapter {
     /** Watchdog windows (tests inject short ones; defaults are live-tuned). */
     firstEventMs?: number
     bodyIdleMs?: number
+    /** Overrides RESPONSES_BODY_IDLE_MS (watchdog tests inject short ones). */
+    responsesBodyIdleMs?: number
   } = {}) {
     this.#catalog = catalog
     this.#firstEventMs = options.firstEventMs ?? DEFAULT_FIRST_EVENT_MS
     this.#bodyIdleMs = options.bodyIdleMs ?? DEFAULT_BODY_IDLE_MS
+    this.#responsesBodyIdleMs = options.responsesBodyIdleMs ?? RESPONSES_BODY_IDLE_MS
     if (options.providerOverride !== undefined) {
       this.#provider = options.providerOverride as never
       this.#responsesProvider = null
@@ -226,12 +238,12 @@ export class ZenAdapter {
     // behind the pending request), so timeout-promise racing is the only
     // mechanism that actually interrupts a hung stream.
     const firstEventMs = this.#firstEventMs
-    // Responses models (muse-spark-*) stream chain-of-thought in bursts with
-    // long mid-stream pauses (issue #7); give them a wider idle window so
-    // slow reasoning is not misread as a dead tunnel. Chat models keep the
-    // live-tuned default.
-    const bodyIdleMs = isResponsesModel(options.model)
-      ? Math.max(this.#bodyIdleMs, 300_000)
+    // Responses models (muse-spark-*) get RESPONSES_BODY_IDLE_MS (see the
+    // constant); chat models keep the live-tuned default. Derived from
+    // model.api — the same routing flag that picked the provider — so the
+    // watchdog and the wire layer can never disagree.
+    const bodyIdleMs = model.api === 'openai-responses'
+      ? Math.max(this.#bodyIdleMs, this.#responsesBodyIdleMs)
       : this.#bodyIdleMs
     const rotateStory: string[] = []
     for (let attempt = 0; ; attempt += 1) {
