@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ModelCatalog } from '../src/adapter/catalog.ts'
-import { PROVIDER_ID, reasoningEfforts, reasoningEffortWire, ZenAdapter } from '../src/adapter/zen-adapter.ts'
+import { isResponsesModel, PROVIDER_ID, reasoningEfforts, reasoningEffortWire, ZenAdapter } from '../src/adapter/zen-adapter.ts'
 
 /**
  * The exact method surface dsh-llm touches on a registered adapter. A missing
@@ -170,4 +170,49 @@ test('stream keeps the free-lane gate rewrite alongside the effort injection', a
 
   // non-chat payloads pass through untouched even with an effort selected
   assert.equal(offOptions.onPayload?.(null), undefined)
+})
+
+test('isResponsesModel routes muse-spark to responses, everything else to chat', () => {
+  for (const id of ['muse-spark-1.3-contributor-free', 'muse-spark-1.2-contributor-free', 'muse-spark-1.2', 'MUSE-SPARK-1.3']) {
+    assert.equal(isResponsesModel(id), true, id)
+  }
+  for (const id of ['big-pickle', 'mimo-v2.5-free', 'deepseek-v4-flash', '']) {
+    assert.equal(isResponsesModel(id), false, id || '(empty)')
+  }
+})
+
+test('ZenAdapter constructs the responses provider alongside chat', () => {
+  const adapter = new ZenAdapter(new ModelCatalog())
+  assert.equal(typeof adapter.stream, 'function')
+})
+
+test('responses models use the wider body-idle window, injectable for tests', async () => {
+  // A provider that emits `start` immediately, then never speaks again: the
+  // stream can only end through the body-idle watchdog, so the surfaced
+  // error's arrival time measures the window actually applied per model.
+  async function* hangAfterStart(): AsyncGenerator<{ type: string; partial: unknown }> {
+    yield { type: 'start', partial: { content: [] } }
+    await new Promise(() => {})
+  }
+  const measure = async (model: string) => {
+    const adapter = new ZenAdapter(
+      { list: () => [], decision: () => ({ allowed: true, source: 'test', known: true }) },
+      { providerOverride: { streamSimple: () => hangAfterStart() }, firstEventMs: 50, bodyIdleMs: 50, responsesBodyIdleMs: 400 },
+    )
+    const began = Date.now()
+    let reason: { kind: string } | undefined
+    for await (const chunk of adapter.stream({ provider: 'opencode2dsh', model, messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }] })) {
+      if (chunk.type === 'finish') {
+        reason = chunk.reason as { kind: string }
+        break
+      }
+    }
+    return { reason, elapsed: Date.now() - began }
+  }
+  const chat = await measure('big-pickle')
+  assert.equal(chat.reason?.kind, 'error')
+  assert.ok(chat.elapsed < 200, `chat should honor the injected 50ms window, took ${chat.elapsed}ms`)
+  const responses = await measure('muse-spark-1.2-contributor-free')
+  assert.equal(responses.reason?.kind, 'error')
+  assert.ok(responses.elapsed > 350, `responses should honor the injected 400ms window, took ${responses.elapsed}ms`)
 })

@@ -1,5 +1,6 @@
 import { createProvider, type Api, type Context, type Model } from '@earendil-works/pi-ai'
 import * as openaiCompletions from '@earendil-works/pi-ai/api/openai-completions'
+import * as openaiResponses from '@earendil-works/pi-ai/api/openai-responses'
 
 import { ModelCatalog, ZEN_BASE_URL } from './catalog.ts'
 import { toStreamChunks, type HarnessChunk, type PiEvent } from './events.ts'
@@ -11,9 +12,10 @@ import { classifyStreamFailure, isRegionBlocked, shouldRotate } from '../pool/ro
 /**
  * The TS adapter: registers as a DSH LlmAdapter for the `opencode2dsh` route
  * and streams directly from the OpenCode Zen anonymous lane. The wire layer is
- * pi-ai's openai-completions implementation (the same one DSH uses for every
- * OpenAI-compatible provider); this module adds the CLI disguise headers, the
- * derived session/request ids, and the free-model catalog.
+ * pi-ai's openai-completions implementation for most models (the same one DSH
+ * uses for every OpenAI-compatible provider), plus pi-ai's openai-responses
+ * for Responses-only models (muse-spark-*); this module adds the CLI disguise
+ * headers, the derived session/request ids, and the free-model catalog.
  *
  * Adapter contract: dsh-llm LlmAdapter (providerInfo/listModels/resolveModel/
  * prepareCall/stream) — structural, no host import.
@@ -112,13 +114,21 @@ export const WATCHDOG_IDLE_MESSAGE = 'opencode2dsh: stream body idle timeout (ex
 /** Default watchdog windows (docs/ip-pool.md; test-injectable via constructor). */
 export const DEFAULT_FIRST_EVENT_MS = 30_000
 export const DEFAULT_BODY_IDLE_MS = 120_000
+/**
+ * Body-idle window for Responses models (muse-spark-*, issue #7): their
+ * chain-of-thought streams pace in bursts with long mid-stream pauses, so
+ * the chat default misreads slow reasoning as a dead tunnel. Named and
+ * constructor-injectable so tests can exercise the wider window without
+ * waiting out five real minutes.
+ */
+export const RESPONSES_BODY_IDLE_MS = 300_000
 
 /** The terminal error event pi-ai owes but never sent (watchdog teardown). */
 function terminalErrorEvent(errorMessage: string, model: Model<Api>): PiEvent {
   return {
     type: 'error',
     error: {
-      api: 'openai-completions',
+      api: model.api ?? 'openai-completions',
       provider: PROVIDER_ID,
       model: model.id,
       content: [],
@@ -129,11 +139,22 @@ function terminalErrorEvent(errorMessage: string, model: Model<Api>): PiEvent {
   }
 }
 
+/**
+ * Responses-only models on Zen (issue #7): `muse-spark-*` return a bare 500
+ * on `POST /zen/v1/chat/completions` but 200 on `POST /zen/v1/responses`
+ * (opencode #44659/#44847, DSH #3957). Route by model id; extend this list
+ * if Zen moves more models (candidates: gpt-5.6-luna, grok-4.6).
+ */
+export function isResponsesModel(id: string): boolean {
+  return String(id ?? '').toLowerCase().startsWith('muse-spark')
+}
+
 function toPiModel(id: string, reasoning: boolean): Model<Api> {
+  const isResponses = isResponsesModel(id)
   return {
     id,
     name: id,
-    api: 'openai-completions',
+    api: isResponses ? 'openai-responses' : 'openai-completions',
     provider: PROVIDER_ID,
     baseUrl: `${ZEN_BASE_URL.replace(/\/+$/, '')}/v1`,
     // The honest capability flag: gates pi-ai's reasoning_effort branch and
@@ -151,8 +172,10 @@ function toPiModel(id: string, reasoning: boolean): Model<Api> {
 export class ZenAdapter {
   readonly #catalog: CatalogLike
   readonly #provider: { streamSimple(model: unknown, context: unknown, options: unknown): unknown }
+  readonly #responsesProvider: { streamSimple(model: unknown, context: unknown, options: unknown): unknown } | null
   readonly #firstEventMs: number
   readonly #bodyIdleMs: number
+  readonly #responsesBodyIdleMs: number
 
   constructor(catalog: CatalogLike, options: {
     zenBaseUrl?: string
@@ -160,27 +183,40 @@ export class ZenAdapter {
     /** Watchdog windows (tests inject short ones; defaults are live-tuned). */
     firstEventMs?: number
     bodyIdleMs?: number
+    /** Overrides RESPONSES_BODY_IDLE_MS (watchdog tests inject short ones). */
+    responsesBodyIdleMs?: number
   } = {}) {
     this.#catalog = catalog
     this.#firstEventMs = options.firstEventMs ?? DEFAULT_FIRST_EVENT_MS
     this.#bodyIdleMs = options.bodyIdleMs ?? DEFAULT_BODY_IDLE_MS
+    this.#responsesBodyIdleMs = options.responsesBodyIdleMs ?? RESPONSES_BODY_IDLE_MS
     if (options.providerOverride !== undefined) {
       this.#provider = options.providerOverride as never
+      this.#responsesProvider = null
       return
     }
     const baseUrl = `${(options.zenBaseUrl ?? ZEN_BASE_URL).replace(/\/+$/, '')}/v1`
+    const auth = {
+      apiKey: {
+        name: 'OpenCode Zen anonymous lane',
+        resolve: async () => ({ auth: { apiKey: ANONYMOUS_KEY } }),
+      },
+    }
     this.#provider = createProvider<Api>({
       id: PROVIDER_ID,
       name: PROVIDER_ID,
       baseUrl,
-      auth: {
-        apiKey: {
-          name: 'OpenCode Zen anonymous lane',
-          resolve: async () => ({ auth: { apiKey: ANONYMOUS_KEY } }),
-        },
-      },
+      auth,
       models: [],
       api: openaiCompletions,
+    })
+    this.#responsesProvider = createProvider<Api>({
+      id: PROVIDER_ID,
+      name: PROVIDER_ID,
+      baseUrl,
+      auth,
+      models: [],
+      api: openaiResponses,
     })
   }
 
@@ -273,7 +309,13 @@ export class ZenAdapter {
     // behind the pending request), so timeout-promise racing is the only
     // mechanism that actually interrupts a hung stream.
     const firstEventMs = this.#firstEventMs
-    const bodyIdleMs = this.#bodyIdleMs
+    // Responses models (muse-spark-*) get RESPONSES_BODY_IDLE_MS (see the
+    // constant); chat models keep the live-tuned default. Derived from
+    // model.api — the same routing flag that picked the provider — so the
+    // watchdog and the wire layer can never disagree.
+    const bodyIdleMs = model.api === 'openai-responses'
+      ? Math.max(this.#bodyIdleMs, this.#responsesBodyIdleMs)
+      : this.#bodyIdleMs
     const rotateStory: string[] = []
     for (let attempt = 0; ; attempt += 1) {
       const events = routingContext.run(contextStore, () =>
@@ -449,7 +491,11 @@ export class ZenAdapter {
             if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return shaped
             return { ...((shaped ?? payload) as Record<string, unknown>), reasoning_effort: effortWire }
           }
-    return this.#provider.streamSimple(model, context as unknown as Context, {
+    // Responses-only models (muse-spark-*) must hit /responses, not /chat/completions.
+    const provider = isResponsesModel(model.id) && this.#responsesProvider
+      ? this.#responsesProvider
+      : this.#provider
+    return provider.streamSimple(model, context as unknown as Context, {
       apiKey: ANONYMOUS_KEY,
       sessionId: ids.session,
       headers: disguiseHeaders(ids),

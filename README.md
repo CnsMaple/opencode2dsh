@@ -93,7 +93,8 @@ DSH session
    │  harness chunks (block-start / text-delta / usage / finish …)
    ▼
 ZenAdapter (registered LlmAdapter)
-   │  pi-ai openai-completions stream
+   │  pi-ai openai-completions stream (chat models)
+   │  pi-ai openai-responses stream (`muse-spark-*`, Responses-only on Zen)
    ▼
 https://opencode.ai/zen/v1        ← Authorization: Bearer public
    with CLI-identical headers:
