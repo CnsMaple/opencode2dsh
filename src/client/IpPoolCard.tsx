@@ -1,10 +1,9 @@
 /**
- * IP 池 plugin card: one card inside 设置 → 插件 → 可配置插件 (the
- * `settings.plugin.item` slot keyed by the `ip-pool` namespace). Configuration
- * rides the OFFICIAL settings scope (rc.2 apiproxy serves every registered
- * namespace); runtime state and probe actions ride the plugin's loopback
- * bridge (/status, /probe). Every setting applies live on save — no restart
- * (docs/ip-pool.md §5).
+ * IP 池 plugin card: one card on the DSH Plugins page (the `plugins.item` slot),
+ * editing this plugin's volatile `ipPool` entry-config. Configuration rides the
+ * shared settings form (`ctx.configForms.get('opencode2dsh')`, projected to the
+ * ipPool subtree); runtime state and probe actions ride the plugin's loopback
+ * bridge (/status, /probe). Every setting applies live on save — no restart.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'

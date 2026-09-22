@@ -7,8 +7,8 @@
 ### Changed
 
 - **客户端设置迁移到新契约**：0.1.7 移除了 `@deepseek-ai/dsh-client-runtime` 及
-  其 `settingsScope` 服务，改用 `configForms`（`ctx.configForms.get('ip-pool')` +
-  `whileServed` 门控）。启动不再报 `pending (waiting for service: settingsScope)`。
+  其 `settingsScope` 服务，改用 `configForms`（`ctx.configForms.get('opencode2dsh')`
+  + `whileServed` 门控）。启动不再报 `pending (waiting for service: settingsScope)`。
 - **设置卡片槽位迁移**：由旧的 `settings.plugin.item` 改为 Plugins 页的
   `plugins.item`（list 形态：`id` + `order` + `label`）。
 - **图标与类型来源更新**：`IconChevronDownOutline14` → `IconChevronDownOutlineRegular`；
@@ -28,11 +28,13 @@
   `pnpm test` 全绿（181 tests）。
 - 依赖全部对齐宿主 `0.1.7-alpha.1`。
 
-### Known limitations
+### 已接通 — IP 池设置卡片
 
-- IP 池的图形设置卡片在 0.1.7 的 entry-config 新范式下尚未接回（0.3.x 曾通过已
-  移除的 `ctx.settings.register` 挂载）。**模型路由不受影响**；IP 池可通过 profile
-  的 entry `config.ipPool` 配置。后续按 `configForms` 范式重接设置页。
+- 插件声明 `export const Config`（静态字段非 volatile，`ipPool` 为一个 volatile 块）；
+  服务端监听 cordis `loader/volatile-update`，在配置改动时 `reconfigure()` 热应用
+  （不重启插件）；客户端经 `configForms.get('opencode2dsh')` 把 ipPool 子树投影进
+  卡片既有形态，注册到 `plugins.item`。IP 池设置页已恢复，改配置即时生效，且免费
+  模型主链路不受影响。
 
 ## 0.3.3 (2026-09-18)
 

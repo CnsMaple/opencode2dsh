@@ -1,9 +1,12 @@
 /**
- * IP-5 live-apply tests: the apply controller over a fake settings seam —
- * boot-time enable, watcher-driven reconfigure (enabled flip included) and
- * the section-shape mapping from either layer's spelling. The real
- * startIpPool is replaced through the assemble seam, so no undici or global
- * dispatcher is ever installed.
+ * Live-apply tests: the ip-pool controller over a volatile `ipPool` config,
+ * driving boot-time enable, `loader/volatile-update`-reconfigure (enabled flip
+ * included) and the section-shape mapping. The real startIpPool is replaced
+ * through the assemble seam, so no undici or global dispatcher is installed.
+ *
+ * DSH 0.1.7 model: config arrives as a volatile reference read via getIpPool();
+ * a settings-page edit commits into the running reference and cordis emits
+ * loader/volatile-update — the harness below mirrors both.
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -40,46 +43,33 @@ const assemble: AssembleIpPool = async (config) => {
   return runtime as never
 }
 
-/** Fake settings seam with the register/watch face (dsh-settings shaped). */
-function makeFakeSeam() {
-  const watchers = new Set<(next: unknown) => void>()
-  let resolved: Record<string, unknown> = {}
-  const seam = {
-    get: () => resolved,
-    mutate: async () => {},
-    register(ns: string, _schema: unknown, options: { base?: unknown }) {
-      assert.equal(String(ns), 'ip-pool')
-      resolved = { ...(options?.base as object) }
-      return {
-        get: () => resolved,
-        watch(callback: (next: unknown) => void) {
-          watchers.add(callback)
-          return () => watchers.delete(callback)
-        },
-      }
-    },
-  }
-  return {
-    seam,
-    commit(next: Record<string, unknown>) {
-      resolved = next
-      for (const callback of watchers) callback(next)
-    },
-  }
-}
-
-function fakeCtx(seam: unknown): PluginContext {
-  return {
+/**
+ * A host-faithful harness: a live `ipPool` value (the volatile reference) plus a
+ * `commit` that updates it and dispatches `loader/volatile-update(['ipPool'])`,
+ * exactly as cordis does when the settings page saves an edit.
+ */
+function harness(initial?: Record<string, unknown>) {
+  let value = initial
+  const listeners: Array<(paths?: readonly (readonly string[])[]) => void> = []
+  const ctx = {
     logger: { info() {}, warn() {}, error() {} },
-    settings: seam as never,
+    on: (_event: string, cb: (paths?: readonly (readonly string[])[]) => void) => {
+      listeners.push(cb)
+      return () => {}
+    },
+  } as unknown as PluginContext
+  const getIpPool = () => value as never
+  const commit = (next: Record<string, unknown>) => {
+    value = next
+    for (const listener of listeners) listener([['ipPool']])
   }
+  return { ctx, logger: ctx.logger, getIpPool, commit }
 }
 
-test('disabled at boot: namespace registers, no runtime assembled', async () => {
+test('disabled at boot: no runtime assembled', async () => {
   resetCalls()
-  const { seam } = makeFakeSeam()
-  const ctx = fakeCtx(seam)
-  const controller = applyIpPoolSettings(ctx, {}, ctx.logger, { assemble })
+  const h = harness({ enabled: false })
+  const controller = applyIpPoolSettings(h.ctx, h.logger, h.getIpPool, { assemble })
   await new Promise((r) => setTimeout(r, 20))
   assert.equal(starts.length, 0)
   assert.equal(controller.runtime, null)
@@ -87,10 +77,8 @@ test('disabled at boot: namespace registers, no runtime assembled', async () => 
 
 test('boot-enabled: runtime assembles once with the entry config', async () => {
   resetCalls()
-  const { seam } = makeFakeSeam()
-  const ctx = fakeCtx(seam)
-  const config = { ipPool: { enabled: true, manual: ['http://1.1.1.1:1'] } } as never
-  const controller = applyIpPoolSettings(ctx, config, ctx.logger, { assemble })
+  const h = harness(IpPoolConfigSchema({ enabled: true, manual: ['http://1.1.1.1:1'] }) as never)
+  const controller = applyIpPoolSettings(h.ctx, h.logger, h.getIpPool, { assemble })
   await new Promise((r) => setTimeout(r, 30))
   assert.equal(starts.length, 1)
   assert.ok(controller.runtime !== null)
@@ -98,23 +86,22 @@ test('boot-enabled: runtime assembles once with the entry config', async () => {
   assert.deepEqual(passed.ipPool?.manual, ['http://1.1.1.1:1'])
 })
 
-test('settings-page enable: commit assembles the runtime, later commits reconfigure live', async () => {
+test('settings-page enable: a volatile commit assembles the runtime, later commits reconfigure live', async () => {
   resetCalls()
-  const { seam, commit } = makeFakeSeam()
-  const ctx = fakeCtx(seam)
-  const controller = applyIpPoolSettings(ctx, {}, ctx.logger, { assemble })
+  const h = harness({ enabled: false })
+  const controller = applyIpPoolSettings(h.ctx, h.logger, h.getIpPool, { assemble })
   await new Promise((r) => setTimeout(r, 10))
   assert.equal(starts.length, 0)
 
-  // flip enabled on (settings-page shape)
-  commit(IpPoolConfigSchema({ enabled: true, manual: ['http://2.2.2.2:2'], maxConcurrentProbes: 5 }) as never)
+  // flip enabled on (settings-page shape), dispatch a volatile update
+  h.commit(IpPoolConfigSchema({ enabled: true, manual: ['http://2.2.2.2:2'], maxConcurrentProbes: 5 }) as never)
   await new Promise((r) => setTimeout(r, 30))
   assert.equal(starts.length, 1, 'enable commit assembles the runtime')
   assert.ok(controller.runtime !== null)
 
   // a later commit (no enable flip) goes through reconfigure, never re-assembles
   const before = starts.length
-  commit(IpPoolConfigSchema({ enabled: true, manual: ['http://2.2.2.2:2'], pinnedExitId: 'http://127.0.0.1:7897', pinnedStrict: true }) as never)
+  h.commit(IpPoolConfigSchema({ enabled: true, manual: ['http://2.2.2.2:2'], pinnedExitId: 'http://127.0.0.1:7897', pinnedStrict: true }) as never)
   await new Promise((r) => setTimeout(r, 30))
   assert.equal(starts.length, before, 'no re-assembly without an enable flip')
   // one reconfigure per commit: the enable commit's post-assembly apply + this one
@@ -126,12 +113,13 @@ test('settings-page enable: commit assembles the runtime, later commits reconfig
 
 test('subscription urls from the settings shape flow into the config assembly', async () => {
   resetCalls()
-  const { seam, commit } = makeFakeSeam()
-  const ctx = fakeCtx(seam)
-  applyIpPoolSettings(ctx, {}, ctx.logger, { assemble })
-  commit(IpPoolConfigSchema({ enabled: true, subscription: { urls: ['https://x/y'] } }) as never)
+  const h = harness(IpPoolConfigSchema({
+    enabled: true,
+    subscription: { urls: ['https://airport.example/sub'], refreshMs: 60_000 },
+  }) as never)
+  applyIpPoolSettings(h.ctx, h.logger, h.getIpPool, { assemble })
   await new Promise((r) => setTimeout(r, 30))
   assert.equal(starts.length, 1)
   const passed = starts[0]!.config as { ipPool?: { subscriptions?: string[] } }
-  assert.deepEqual(passed.ipPool?.subscriptions, ['https://x/y'])
+  assert.deepEqual(passed.ipPool?.subscriptions, ['https://airport.example/sub'])
 })

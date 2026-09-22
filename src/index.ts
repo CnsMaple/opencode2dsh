@@ -6,9 +6,11 @@ import { writeFile } from 'node:fs/promises'
 import { ModelCatalog, defaultCachePath, type CatalogSnapshot } from './adapter/catalog.ts'
 import { ZenAdapter, PROVIDER_ID } from './adapter/zen-adapter.ts'
 import { AgentProcess, type ReadyInfo } from './agent-process.js'
-import { configPaths, ensureToken, resolveConfig, writeAgentConfig, type Opencode2dshConfig } from './config.js'
+import { configPaths, ensureToken, resolveConfig, writeAgentConfig, type IpPoolConfig, type Opencode2dshConfig } from './config.js'
 import { applyIpPoolSettings } from './ip-pool-settings/apply.ts'
+import { IpPoolConfigSchema } from './ip-pool-settings/namespace.ts'
 import { fetchHealth, fetchModels, registerProvider, removeProviderRoute } from './provider.js'
+import z from '@deepseek-ai/schemastery'
 
 /**
  * opencode2dsh DSH cordis plugin entry.
@@ -52,9 +54,49 @@ export interface PluginContext {
 
 export const name = 'opencode2dsh'
 export const inject = ['llm', 'credentials', 'settings'] as const
-export function apply(ctx: PluginContext, config: Opencode2dshConfig = {}): { ready: Promise<ReadyInfo> } {
-  if (resolveConfig(config).mode === 'sidecar') return applySidecar(ctx, config)
-  return applyAdapter(ctx, config)
+
+/** Entry id — also the settings namespace the DSH Plugins page serves for this plugin. */
+export const ENTRY_ID = 'opencode2dsh'
+
+/**
+ * Plugin config schema. Static fields (mode/providerId/…) stay plain values in
+ * `apply`; `ipPool` is the one **volatile** block the settings page edits,
+ * hot-applied through the cordis `loader/volatile-update` event (no remount).
+ */
+export const Config = z.object({
+  mode: z.union(['adapter', 'sidecar']).default('adapter'),
+  providerId: z.string().default('opencode2dsh'),
+  apiKeyEnv: z.string().default('OPENCODE2DSH_TOKEN'),
+  refreshSeconds: z.number().step(1).min(1).default(300),
+  agentPath: z.string(),
+  agentArgs: z.array(z.string()),
+  restartDelayMs: z.number().step(1).default(1000),
+  restartMaxDelayMs: z.number().step(1).default(60000),
+  maxConsecutiveCrashes: z.number().step(1).min(1).default(5),
+  ipPool: IpPoolConfigSchema.default({}).volatile(),
+})
+
+/** Structural stand-in for cordis' Volatile reference (kept host-version-agnostic). */
+interface VolatileRef<T> { get(): T }
+
+/** Config as cordis injects it: `ipPool` is a volatile reference, the rest are plain values. */
+export type InjectedConfig = Omit<Opencode2dshConfig, 'ipPool'> & { ipPool?: VolatileRef<IpPoolConfig> | IpPoolConfig }
+
+/** Read the live ip-pool snapshot out of the (possibly volatile) config field. */
+function ipPoolOf(config: InjectedConfig): IpPoolConfig | undefined {
+  const ip = config.ipPool as VolatileRef<IpPoolConfig> | IpPoolConfig | undefined
+  if (ip !== undefined && ip !== null && typeof (ip as VolatileRef<IpPoolConfig>).get === 'function') {
+    return (ip as VolatileRef<IpPoolConfig>).get()
+  }
+  return ip as IpPoolConfig | undefined
+}
+
+export function apply(ctx: PluginContext, config: InjectedConfig = {}): { ready: Promise<ReadyInfo> } {
+  // Flatten the volatile ipPool into a plain snapshot for the static reads, and
+  // hand the ip-pool owner a live getter so volatile updates re-configure it.
+  const plain: Opencode2dshConfig = { ...config, ipPool: ipPoolOf(config) }
+  if (resolveConfig(plain).mode === 'sidecar') return applySidecar(ctx, plain)
+  return applyAdapter(ctx, plain, () => ipPoolOf(config))
 }
 
 /**
@@ -62,7 +104,7 @@ export function apply(ctx: PluginContext, config: Opencode2dshConfig = {}): { re
  * is disposed with the plugin fiber (registerAdapter uses ctx.effect
  * internally); we only own the catalog refresh loop here.
  */
-function applyAdapter(ctx: PluginContext, config: Opencode2dshConfig): { ready: Promise<{ port: number; version: string }> } {
+function applyAdapter(ctx: PluginContext, config: Opencode2dshConfig, getIpPool: () => IpPoolConfig | undefined): { ready: Promise<{ port: number; version: string }> } {
   const logger = ctx.logger
   const cfg = resolveConfig(config)
   const ready = Promise.resolve({ port: 0, version: 'adapter' })
@@ -106,7 +148,7 @@ function applyAdapter(ctx: PluginContext, config: Opencode2dshConfig): { ready: 
   // owned by applyIpPoolSettings through the plugin fiber. The probe-model
   // dropdown rows include the live catalog, so this must run after the
   // catalog instance exists.
-  applyIpPoolSettings(ctx, config, logger, { listLiveModels: () => catalog.list() })
+  applyIpPoolSettings(ctx, logger, getIpPool, { listLiveModels: () => catalog.list() })
 
   // Register immediately: the provider must appear in the selector right
   // away, even while the catalog is still warming up (listModels is read

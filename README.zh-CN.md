@@ -135,10 +135,9 @@ https://opencode.ai/zen/v1        ← Authorization: Bearer public
 | 连接 `127.0.0.1:*` 报错 | 残留的 sidecar 路由遮蔽了 adapter；插件启动时会自动清理。 |
 | 安装时报 `ERR_PNPM_IGNORED_BUILDS` | `pi-ai` 的传递依赖（`@google/genai`、`protobufjs`）带构建脚本，运行时并不需要。在插件市场里按提示选择允许/拒绝，或在 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds:` 下把这两项设为 `false`。 |
 
-**本 fork 已知限制**：IP 池的**图形设置卡片**在 0.1.7-alpha.1 上暂不显示。它此前通过
-`ctx.settings.register` 挂载，而 0.1.7 将该接缝改成了 entry-config 模型；设置页会在后续
-按 `configForms` 范式重接。**模型路由不受影响**——可通过 profile entry 的
-`config.ipPool` 配置 IP 池。
+**IP 池设置卡片**：已接入 0.1.7 的 `configForms` 模型——插件声明 `export const Config`
+（`ipPool` 为 volatile 块），在 **设置 → 插件 → IP 池** 卡片里编辑；改动经 cordis 的
+`loader/volatile-update` 热应用、无需重启，且不影响免费模型主链路。
 
 ## 安全性
 

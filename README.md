@@ -146,11 +146,10 @@ The plugin writes a health snapshot after every refresh round:
 | Connection error to `127.0.0.1:*` | A stale sidecar route shadows the adapter; the plugin removes it at startup. |
 | Install fails with `ERR_PNPM_IGNORED_BUILDS` | A transitive dependency of `pi-ai` (`@google/genai`, `protobufjs`) has build scripts not needed at runtime. Approve-or-decline via the plugin market, or set both to `false` under `allowBuilds:` in the profile's `pnpm-workspace.yaml`. |
 
-**Known limitation (fork)**: the IP-pool **settings card** is not shown on
-DSH 0.1.7-alpha.1 yet. It used to mount through `ctx.settings.register`, which
-0.1.7 replaced with the entry-config model; the card will be rewired to
-`configForms` in a follow-up. Model routing is unaffected — configure the pool
-via the profile entry's `config.ipPool`.
+**IP-pool settings card**: wired to the 0.1.7 `configForms` model — the plugin
+declares `export const Config` with a volatile `ipPool` block, edited on
+**Settings → Plugins → IP 池**; changes hot-apply through cordis'
+`loader/volatile-update` without a restart, and model routing is untouched.
 
 ## Security
 

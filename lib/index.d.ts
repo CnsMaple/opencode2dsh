@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import z from "@deepseek-ai/schemastery";
 
 //#region src/agent-process.d.ts
 
@@ -255,7 +256,45 @@ interface PluginContext {
 }
 declare const name = "opencode2dsh";
 declare const inject: readonly ["llm", "credentials", "settings"];
-declare function apply(ctx: PluginContext, config?: Opencode2dshConfig): {
+/** Entry id — also the settings namespace the DSH Plugins page serves for this plugin. */
+declare const ENTRY_ID = "opencode2dsh";
+/**
+ * Plugin config schema. Static fields (mode/providerId/…) stay plain values in
+ * `apply`; `ipPool` is the one **volatile** block the settings page edits,
+ * hot-applied through the cordis `loader/volatile-update` event (no remount).
+ */
+declare const Config: z<Schemastery.ObjectS<{
+  mode: z<"adapter" | "sidecar", "adapter" | "sidecar">;
+  providerId: z<string, string>;
+  apiKeyEnv: z<string, string>;
+  refreshSeconds: z<number, number>;
+  agentPath: z<string, string>;
+  agentArgs: z<string[], string[]>;
+  restartDelayMs: z<number, number>;
+  restartMaxDelayMs: z<number, number>;
+  maxConsecutiveCrashes: z<number, number>;
+  ipPool: any;
+}>, Schemastery.ObjectT<{
+  mode: z<"adapter" | "sidecar", "adapter" | "sidecar">;
+  providerId: z<string, string>;
+  apiKeyEnv: z<string, string>;
+  refreshSeconds: z<number, number>;
+  agentPath: z<string, string>;
+  agentArgs: z<string[], string[]>;
+  restartDelayMs: z<number, number>;
+  restartMaxDelayMs: z<number, number>;
+  maxConsecutiveCrashes: z<number, number>;
+  ipPool: any;
+}>>;
+/** Structural stand-in for cordis' Volatile reference (kept host-version-agnostic). */
+interface VolatileRef<T> {
+  get(): T;
+}
+/** Config as cordis injects it: `ipPool` is a volatile reference, the rest are plain values. */
+type InjectedConfig = Omit<Opencode2dshConfig, 'ipPool'> & {
+  ipPool?: VolatileRef<IpPoolConfig> | IpPoolConfig;
+};
+declare function apply(ctx: PluginContext, config?: InjectedConfig): {
   ready: Promise<ReadyInfo>;
 };
 /**
@@ -265,4 +304,4 @@ declare function apply(ctx: PluginContext, config?: Opencode2dshConfig): {
  */
 declare function defaultAgentPath(): string;
 //#endregion
-export { AgentProcess, type DshSeams, type Opencode2dshConfig, PluginContext, apply, configPaths, defaultAgentPath, ensureToken, fetchHealth, fetchModels, inject, name, providerBaseURL, registerProvider, resolveConfig, toPiAiModels, writeAgentConfig };
+export { AgentProcess, Config, type DshSeams, ENTRY_ID, InjectedConfig, type Opencode2dshConfig, PluginContext, apply, configPaths, defaultAgentPath, ensureToken, fetchHealth, fetchModels, inject, name, providerBaseURL, registerProvider, resolveConfig, toPiAiModels, writeAgentConfig };

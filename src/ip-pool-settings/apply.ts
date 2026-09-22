@@ -1,25 +1,28 @@
 /**
- * ip-pool settings controller — glues the settings namespace (docs/ip-pool.md
- * §5.1) to the runtime assembly (ip-pool.ts) with live apply, and mounts the
- * status/probe bridge (§5.3) on the host webServer.
+ * ip-pool settings controller — glues the ip-pool entry-config (the volatile
+ * `ipPool` block the Plugins page edits) to the runtime assembly (ip-pool.ts)
+ * with live apply, and mounts the status/probe bridge on the host webServer.
  *
- * Lifecycle (all no-restart, docs §7 IP-5 acceptance):
- *  - entry config enabled at boot: pool assembles immediately;
- *  - namespace registers with the composition entry as `base`, applies live;
- *  - watch(next) hot-applies every commit through runtime.reconfigure() —
- *    including the `enabled` flip (dispatcher install/uninstall) and address
- *    list edits (manual rows rebuilt, pinned re-pinned);
- *  - bridge routes mount once the webServer service shows up (ctx.inject),
- *    reading the live runtime and the current settings value.
+ * DSH 0.1.7 reads config through a `Config` schema (see src/index.ts): `ipPool`
+ * is a volatile block, edited through `configForms`. Volatile edits are NOT a
+ * remount — cordis commits them into the running reference and emits
+ * `loader/volatile-update`, which this controller listens to and re-configures
+ * the live pool from `getIpPool()`. No restart for any knob, including
+ * `enabled` itself.
+ *
+ * Lifecycle:
+ *  - boot: assemble if the committed value is enabled;
+ *  - each ipPool volatile change: hot-apply through runtime.reconfigure();
+ *  - bridge routes mount once webServer is up, reading the live runtime.
  */
 
 import type { PluginContext } from '../index.ts'
-import type { Opencode2dshConfig } from '../config.ts'
+import type { IpPoolConfig, Opencode2dshConfig } from '../config.ts'
 import type { IpPoolRuntime } from '../ip-pool.ts'
-import { IP_POOL_NAMESPACE, IpPoolConfigSchema, toIpPoolConfig, type IpPoolSettings } from './namespace.ts'
+import { toIpPoolConfig, type IpPoolSettings } from './namespace.ts'
 import { IP_POOL_BRIDGE_PREFIX, makeBridgeHandlers, makeBridgeRoutes } from './bridge.ts'
 
-/** Either layer's ip-pool section (settings value or plugin config shape). */
+/** Either layer's ip-pool section (settings value or config shape). */
 type AnyIpPoolSection = Partial<IpPoolSettings> & {
   subscriptions?: string[]
   free?: Partial<IpPoolSettings['free']>
@@ -57,7 +60,7 @@ export interface IpPoolController {
   runtime: IpPoolRuntime | null
   /** Current effective settings value (defaults filled). */
   settings(): IpPoolSettings
-  /** The plugin config object shape consumed by reconfigure. */
+  /** The plugin config shape consumed by startIpPool / reconfigure. */
   asConfig(value: IpPoolSettings): Opencode2dshConfig
 }
 
@@ -73,20 +76,22 @@ const defaultAssemble: AssembleIpPool = async (config, logger) => {
 }
 
 /**
- * Register the ip-pool namespace, own the live runtime, mount the bridge.
+ * Own the live ip-pool runtime and mount the bridge. Configuration is read live
+ * from `getIpPool()` (the volatile `ipPool` entry-config block); every change
+ * reaching the running fiber (`loader/volatile-update`) is hot-applied.
  * Returns the controller handle; disposal rides the plugin fiber.
  */
 export function applyIpPoolSettings(
   ctx: PluginContext,
-  config: Opencode2dshConfig,
   logger: PluginContext['logger'],
+  getIpPool: () => IpPoolConfig | undefined,
   deps: { assemble?: AssembleIpPool; listLiveModels?: () => string[] } = {},
 ): IpPoolController {
   const assemble = deps.assemble ?? defaultAssemble
   const controller: IpPoolController = {
     runtime: null,
-    settings: () => withDefaults(config.ipPool as Partial<IpPoolSettings> | undefined),
-    asConfig: (value) => ({ ...config, ipPool: toIpPoolConfig(value) }),
+    settings: () => withDefaults(getIpPool() as AnyIpPoolSection | undefined),
+    asConfig: (value) => ({ ipPool: toIpPoolConfig(value) }),
   }
 
   /** Assemble on first enable; reuse across later commits (live reconfigure). */
@@ -95,13 +100,9 @@ export function applyIpPoolSettings(
     controller.runtime = await assemble(controller.asConfig(controller.settings()), logger)
   }
 
-  // Cold-start ordering (dsh-llm-proxy's applyCurrent pattern): the namespace
-  // resolves schema defaults -> base -> the PERSISTED user document, so a
-  // saved enabled:true must assemble the pool at boot — not only after the
-  // next settings-page write. The entry config alone cannot see it.
+  // Apply a resolved ip-pool value: enable→assemble then reconfigure, or
+  // reconfigure the running pool. One path covers boot and every commit.
   const applyCommitted = (value: IpPoolSettings): void => {
-    // Mirror the live value onto the entry-config shape reconfigure consumes.
-    config.ipPool = toIpPoolConfig(value)
     const rt = controller.runtime
     if (value.enabled && rt === null) {
       void ensureRuntime()
@@ -118,27 +119,20 @@ export function applyIpPoolSettings(
     }
   }
 
-  if (typeof ctx.settings?.register !== 'function') {
-    logger.warn('opencode2dsh: settings seam lacks register; ip-pool settings page disabled (patch config still works)')
-    if (controller.settings().enabled) {
-      void ensureRuntime().catch((err) => {
-        logger.warn(`opencode2dsh: ip pool start failed: ${err instanceof Error ? err.message : String(err)}`)
-      })
-    }
-    return controller
-  }
+  // Boot: apply the currently committed value (the persisted document is part
+  // of it), so a saved enabled:true assembles the pool at start.
+  applyCommitted(controller.settings())
 
-  const scope = ctx.settings.register(IP_POOL_NAMESPACE, IpPoolConfigSchema, {
-    base: controller.settings(),
-    applies: 'live',
-  })
-
-  // Boot: apply the RESOLVED namespace value (the persisted document is part
-  // of it). Watch: apply every commit the same way — one path for both.
-  applyCommitted(withDefaults(scope.get() as Partial<IpPoolSettings> | undefined))
-  const disposeWatch = scope.watch((next: unknown) => {
-    applyCommitted(withDefaults(next as Partial<IpPoolSettings>))
-  })
+  // Hot apply: cordis commits volatile ipPool edits without a remount and emits
+  // `loader/volatile-update` with the changed paths. Re-read the live value and
+  // reconfigure. A host without the event (older seam) simply stays boot-only.
+  const unsubscribe = typeof ctx.on === 'function'
+    ? ctx.on('loader/volatile-update', (paths?: readonly (readonly string[])[]) => {
+      const touchesIpPool = paths === undefined || paths.length === 0
+        || paths.some((path) => path.length === 0 || path[0] === 'ipPool')
+      if (touchesIpPool) applyCommitted(withDefaults(getIpPool() as AnyIpPoolSection | undefined))
+    })
+    : undefined
 
   // Bridge: mount once webServer is up. The handlers read the live runtime
   // and the current settings value at request time (never stale closures).
@@ -173,11 +167,11 @@ export function applyIpPoolSettings(
     })) as unknown as Promise<unknown>
   }
 
-  logger.info('opencode2dsh: settings namespace "ip-pool" registered — live apply via 设置 → 插件 → IP 池')
+  logger.info('opencode2dsh: ip-pool controller active — live apply via 设置 → 插件 → IP 池')
   const maybeEffect = (ctx as { effect?: PluginContext['effect'] }).effect
   if (typeof maybeEffect === 'function') {
     maybeEffect.call(ctx, () => () => {
-      disposeWatch()
+      unsubscribe?.()
       void controller.runtime?.dispose()
       controller.runtime = null
     })
