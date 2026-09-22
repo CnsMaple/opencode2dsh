@@ -8,28 +8,28 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: pulls the ui-settings-plugins SlotMap merge (the
-// 'settings.plugin.item' keyed entry the configurable tab declares at runtime).
-import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
+// Type-only: pulls the Plugins page SlotMap merge (the 'plugins.item' list
+// entry the Plugins page declares at runtime).
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
+import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { en } from './locales.ts'
 import styles from './ip-pool.module.css'
 
 /** Injected dependencies of the card (slot `inject`). */
 export interface IpPoolCardInjected {
-  /** The officially bound ip-pool settings scope (rc.2: always available). */
-  scope: SettingsScope<IpPoolSettingsValue>
-  /** uSES subscription hook bound to the scope snapshot. */
-  useSnapshot: () => SettingsScopeSnapshot<IpPoolSettingsValue>
+  /** The shared ip-pool settings form bound through ctx.configForms. */
+  scope: ConfigForm<IpPoolSettingsValue>
+  /** uSES subscription hook bound to the form snapshot. */
+  useSnapshot: () => ConfigFormSnapshot<IpPoolSettingsValue>
   /** Card copy. */
   t: (key: keyof typeof en) => string
 }
 
 /** Props delivered by the slot outlet (inject face spread flat). */
 export type IpPoolCardProps =
-  PropsRuntime<'settings.plugin.item'>
+  PropsRuntime<'plugins.item'>
   & InjectFace<IpPoolCardInjected>
 
 /** The resolved ip-pool settings value (mirrors the schemastery schema). */
@@ -163,7 +163,7 @@ function formFromValue(value: IpPoolSettingsValue): FormState {
 /** Field writes landing the form on the resolved value, in write order. */
 interface FieldWrite { field: string; op: 'set'; value: unknown }
 
-function diffWrites(form: FormState, snapshot: SettingsScopeSnapshot<IpPoolSettingsValue>): FieldWrite[] {
+function diffWrites(form: FormState, snapshot: ConfigFormSnapshot<IpPoolSettingsValue>): FieldWrite[] {
   const value = snapshot.value
   const base = snapshot.base as Partial<IpPoolSettingsValue> | undefined
   const writes: FieldWrite[] = []
@@ -626,7 +626,7 @@ function CardBody(props: Required<IpPoolCardInjected>): ReactNode {
     let firstFailure: string | null = null
     for (const field of ['enabled', 'free', 'manual', 'subscription', 'singbox', 'pinnedExitId', 'pinnedStrict', 'probeModels', 'maxConcurrentProbes']) {
       try {
-        await scope.unset(field)
+        await scope.mutate([{ op: 'unset', path: [field] }])
       } catch (err) {
         firstFailure ??= err instanceof Error ? err.message : t('saveError')
       }
@@ -943,7 +943,7 @@ export function IpPoolCard(props: IpPoolCardProps): ReactNode {
           <span className={styles.name}>{t('title')}</span>
           <span className={styles.description}>{t('description')}</span>
         </span>
-        <IconChevronDownOutline14 className={styles.chevron + (open ? ` ${styles.chevronOpen}` : '')} />
+        <IconChevronDownOutlineRegular className={styles.chevron + (open ? ` ${styles.chevronOpen}` : '')} />
       </button>
       {open && <CardBody scope={scope} useSnapshot={useSnapshot} t={t} />}
     </li>

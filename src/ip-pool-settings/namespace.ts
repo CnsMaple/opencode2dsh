@@ -16,10 +16,11 @@
  */
 
 import Schema from '@deepseek-ai/schemastery'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 
-/** Namespace owned by this plugin (kebab-case per brand rules). */
-export const IP_POOL_NAMESPACE = settingsNamespace('ip-pool')
+/** Namespace owned by this plugin (kebab-case per brand rules). In DSH >=
+ * 0.1.7 the settings namespace is a plain branded string, so this is the id
+ * directly — no `settingsNamespace()` runtime helper is exported anymore. */
+export const IP_POOL_NAMESPACE = 'ip-pool'
 
 /** docs/ip-pool.md §4.6 probe defaults (S3 first entry is the doc-mandated default). */
 const DEFAULT_PROBE_MODEL = 'big-pickle'

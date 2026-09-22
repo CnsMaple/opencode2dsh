@@ -1,17 +1,13 @@
 # Dependencies
 node_modules/
 
-# Build output
-packages/plugin/lib/
-packages/plugin/bin/
-packages/plugin/README.md
-packages/plugin/README.zh-CN.md
-packages/plugin/LICENSE
-legacy/agent/.gotmp/
-
 # Logs / local state
 *.log
+legacy/agent/.gotmp/
 
 # Local drafts
 xiaohongshu-post.md
 *.tgz
+
+# NOTE: lib/ (the built node + client bundles) is intentionally committed so
+# the repo installs directly via `dsh plugin add <git url>` without a build step.
