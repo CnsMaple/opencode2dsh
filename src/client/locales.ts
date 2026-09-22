@@ -2,6 +2,7 @@
  * The `settings.ip-pool` locale dictionaries for the IP 池 card (docs/ip-pool.md
  * §5.2 block table). Keys track exactly the UI-surfaced strings.
  */
+import type { SettingsFormLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
@@ -96,6 +97,9 @@ export const zh = {
   saved: '已保存，立即生效',
   reset: '恢复默认',
   saveError: '保存失败',
+  formUnavailable: '设置服务当前不可用，暂时无法编辑 IP 池配置。',
+  formReadOnly: '当前 profile 的配置为只读，无法在此保存。',
+  formSaveFailed: '上次保存未被接受。',
   invalidRange: '数值超出允许范围。',
   invalidProxy: '代理地址格式应为 http://host:port 或 socks5://host:port。',
   invalidUrl: '请填写合法的 http(s) URL。',
@@ -199,6 +203,9 @@ export const en: Record<keyof typeof zh, string> = {
   saved: 'Saved, applied live',
   reset: 'Reset to defaults',
   saveError: 'Save failed',
+  formUnavailable: 'The settings service is unavailable; the IP-pool configuration cannot be edited right now.',
+  formReadOnly: 'This profile’s configuration is read-only; you cannot save from here.',
+  formSaveFailed: 'The last save was not accepted.',
   invalidRange: 'A value is out of range.',
   invalidProxy: 'Expected http://host:port or socks5://host:port.',
   invalidUrl: 'Enter a valid http(s) URL.',
@@ -210,3 +217,14 @@ export const en: Record<keyof typeof zh, string> = {
 }
 
 export type IpPoolKey = keyof typeof zh
+
+/** The copy the shared SettingsForm frame renders (save bar, read-only, failures). */
+export function formLabels(t: (key: IpPoolKey) => string): SettingsFormLabels {
+  return {
+    unavailable: t('formUnavailable'),
+    readOnly: t('formReadOnly'),
+    saveFailed: t('formSaveFailed'),
+    save: t('save'),
+    saving: t('saving'),
+  }
+}

@@ -5,15 +5,17 @@
  * ipPool subtree); runtime state and probe actions ride the plugin's loopback
  * bridge (/status, /probe). Every setting applies live on save — no restart.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SettingsForm, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls the Plugins page SlotMap merge (the 'plugins.item' list
 // entry the Plugins page declares at runtime).
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { en } from './locales.ts'
+import { formLabels } from './locales.ts'
 import styles from './ip-pool.module.css'
 
 /** Injected dependencies of the card (slot `inject`). */
@@ -920,47 +922,14 @@ function CardBody(props: Required<IpPoolCardInjected>): ReactNode {
 }
 
 /**
- * The IP 池 plugin card. Renders nothing until the slot outlet supplies the
- * inject face; the section stacks cards and reports their count.
+ * The IP 池 plugin card. The plugins.item slot renders one entry in two views:
+ * `summary` (a one-liner in the list / page header) and `page` (the full form).
+ * Render only the matching view so the card is never shown twice; the page view
+ * is a standard SettingsForm — the same frame the built-in plugin pages use.
  */
 export function IpPoolCard(props: IpPoolCardProps): ReactNode {
   const { scope, useSnapshot, t, view } = props
-  const [open, setOpen] = useState(false)
-  useMemo(() => undefined, []) // keep React import meaningful for jsx-runtime parity
   if (scope === undefined || useSnapshot === undefined || t === undefined) return null
-  // The plugins.item slot renders one entry in two views: `summary` (the
-  // one-liner in the list / page header) and `page` (the full form once opened).
-  // Without a view split the full card renders twice — so emit a compact
-  // one-liner for the summary view.
-  if (view === 'summary') {
-    return (
-      <li className={styles.card}>
-        <div className={styles.header}>
-          <span className={styles.headText}>
-            <span className={styles.name}>{t('title')}</span>
-            <span className={styles.description}>{t('description')}</span>
-          </span>
-        </div>
-      </li>
-    )
-  }
-  return (
-    <li className={styles.card}>
-      <button
-        type="button"
-        className={styles.header}
-        aria-expanded={open}
-        aria-label={`${t(open ? 'collapse' : 'expand')}: ${t('title')}`}
-        data-testid="ip-pool-card-header"
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className={styles.headText}>
-          <span className={styles.name}>{t('title')}</span>
-          <span className={styles.description}>{t('description')}</span>
-        </span>
-        <IconChevronDownOutlineRegular className={styles.chevron + (open ? ` ${styles.chevronOpen}` : '')} />
-      </button>
-      {open && <CardBody scope={scope} useSnapshot={useSnapshot} t={t} />}
-    </li>
-  )
+  if (view === 'summary') return t('description')
+  return <CardBody scope={scope} useSnapshot={useSnapshot} t={t} />
 }
