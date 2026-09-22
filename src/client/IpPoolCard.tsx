@@ -671,37 +671,44 @@ function CardBody(props: Required<IpPoolCardInjected>): ReactNode {
   const probeDone = status !== null ? status.prober.completed : 0
   const probeTotal = status !== null ? status.prober.enqueued : 0
 
+  // SettingsForm frame state: dirty = the draft differs from what the Host
+  // serves; invalid = a field fails validation; failed = the last save errored.
+  const shell: SettingsFormShell = {
+    available: true,
+    writable: snapshot.writable,
+    dirty: diffWrites(form, snapshot).length > 0,
+    invalid: validate() !== null,
+    saving,
+    failed: error !== null,
+  }
   return (
-    <div className={styles.body} data-testid="ip-pool-form">
-      <OverviewBar status={form.enabled ? status : null} t={t} />
+    <SettingsForm labels={formLabels(t)} state={shell} onSave={() => { void handleSave() }} onDiscard={() => {}}>
+      <div className={styles.body} data-testid="ip-pool-form">
+        <OverviewBar status={form.enabled ? status : null} t={t} />
 
-      <label className={styles.radio}>
-        <input
-          type="checkbox"
+      <div className={styles.field}>
+        <span className={styles.fieldLabel}>{t('enabled')}</span>
+        <Switch
           checked={form.enabled}
-          data-testid="field-enabled"
-          onChange={(event) => { setSaved(false); setForm({ ...form, enabled: event.target.checked }) }}
+          label={t('enabled')}
+          disabled={!snapshot.writable || saving}
+          onChange={(next) => { setSaved(false); setForm({ ...form, enabled: next }) }}
         />
-        <span>
-          <span className={styles.fieldLabel}>{t('enabled')}</span>
-          <span className={styles.fieldHint}> {t('enabledHint')}</span>
-        </span>
-      </label>
+        <span className={styles.fieldHint}>{t('enabledHint')}</span>
+      </div>
 
       <div className={styles.section}>
         <span className={styles.sectionTitle}>{t('sectionFree')}</span>
-        <label className={styles.radio}>
-          <input
-            type="checkbox"
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>{t('freeEnabled')}</span>
+          <Switch
             checked={form.freeEnabled}
-            data-testid="field-freeEnabled"
-            onChange={(event) => { setSaved(false); setForm({ ...form, freeEnabled: event.target.checked }) }}
+            label={t('freeEnabled')}
+            disabled={!snapshot.writable || saving}
+            onChange={(next) => { setSaved(false); setForm({ ...form, freeEnabled: next }) }}
           />
-          <span>
-            <span className={styles.fieldLabel}>{t('freeEnabled')}</span>
-            <span className={styles.fieldHint}> {t('freeEnabledHint')}</span>
-          </span>
-        </label>
+          <span className={styles.fieldHint}>{t('freeEnabledHint')}</span>
+        </div>
         <div className={styles.fieldRow}>
           <TextField
             label={t('freeTargetSize')}
@@ -817,27 +824,16 @@ function CardBody(props: Required<IpPoolCardInjected>): ReactNode {
           testId="field-pinnedExitId"
           onChange={(value) => { setSaved(false); setForm({ ...form, pinnedExitId: value }) }}
         />
-        <span className={styles.fieldLabel}>{t('pinnedStrict')}</span>
-        <span className={styles.fieldHint}>{t('pinnedStrictHint')}</span>
-        <label className={styles.radio}>
-          <input
-            type="radio"
-            name="ip-pool-strict"
-            checked={!form.pinnedStrict}
-            onChange={() => { setSaved(false); setForm({ ...form, pinnedStrict: false }) }}
-          />
-          {t('pinnedStrictOff')}
-        </label>
-        <label className={styles.radio}>
-          <input
-            type="radio"
-            name="ip-pool-strict"
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>{t('pinnedStrict')}</span>
+          <Switch
             checked={form.pinnedStrict}
-            data-testid="field-pinnedStrict"
-            onChange={() => { setSaved(false); setForm({ ...form, pinnedStrict: true }) }}
+            label={t('pinnedStrict')}
+            disabled={!snapshot.writable || saving}
+            onChange={(next) => { setSaved(false); setForm({ ...form, pinnedStrict: next }) }}
           />
-          {t('pinnedStrictOn')}
-        </label>
+          <span className={styles.fieldHint}>{form.pinnedStrict ? t('pinnedStrictOn') : t('pinnedStrictOff')}</span>
+        </div>
         {form.pinnedExitId !== '' && (
           <button
             type="button"
@@ -895,15 +891,6 @@ function CardBody(props: Required<IpPoolCardInjected>): ReactNode {
       <div className={styles.footer}>
         <button
           type="button"
-          className={styles.primaryButton}
-          data-testid="save-ip-pool"
-          disabled={saving || !snapshot.writable}
-          onClick={() => { void handleSave() }}
-        >
-          {saving ? t('saving') : t('save')}
-        </button>
-        <button
-          type="button"
           className={styles.ghostButton}
           data-testid="reset-ip-pool"
           disabled={saving || !snapshot.writable}
@@ -917,7 +904,8 @@ function CardBody(props: Required<IpPoolCardInjected>): ReactNode {
       </div>
 
       <p className={styles.compliance}>{t('copyCompliance')}</p>
-    </div>
+      </div>
+    </SettingsForm>
   )
 }
 
