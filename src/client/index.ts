@@ -65,15 +65,24 @@ interface EntryConfig {
  * `['ipPool', …]` path prefix; reads lift `.value.ipPool` / `.base.ipPool` up.
  */
 function ipPoolScope(form: ConfigForm<EntryConfig>): ConfigForm<IpPoolSettingsValue> {
-  const mutate = form.mutate.bind(form)
+  const rawGet = form.getSnapshot.bind(form)
   const subscribe = form.subscribe.bind(form)
-  const getSnapshot = form.getSnapshot.bind(form)
+  const mutate = form.mutate.bind(form)
   const section = (value: unknown): IpPoolSettingsValue | undefined =>
     (value as { ipPool?: IpPoolSettingsValue } | undefined)?.ipPool
+  // useSyncExternalStore needs a stable snapshot reference: recompute the
+  // ipPool projection only when the underlying form snapshot actually changed,
+  // otherwise React sees a new object every render and loops (error #185).
+  let source: ConfigFormSnapshot<EntryConfig> | undefined
+  let projected: ConfigFormSnapshot<IpPoolSettingsValue> | undefined
   return {
     getSnapshot: () => {
-      const snapshot = getSnapshot()
-      return { ...snapshot, value: snapshot.value?.ipPool, base: section(snapshot.base), user: section(snapshot.user) }
+      const next = rawGet()
+      if (next !== source || projected === undefined) {
+        source = next
+        projected = { ...next, value: next.value?.ipPool, base: section(next.base), user: section(next.user) }
+      }
+      return projected
     },
     subscribe,
     set: (field, value) => mutate([{ op: 'set', path: ['ipPool', field], value }]),
