@@ -924,10 +924,26 @@ function CardBody(props: Required<IpPoolCardInjected>): ReactNode {
  * inject face; the section stacks cards and reports their count.
  */
 export function IpPoolCard(props: IpPoolCardProps): ReactNode {
-  const { scope, useSnapshot, t } = props
+  const { scope, useSnapshot, t, view } = props
   const [open, setOpen] = useState(false)
   useMemo(() => undefined, []) // keep React import meaningful for jsx-runtime parity
   if (scope === undefined || useSnapshot === undefined || t === undefined) return null
+  // The plugins.item slot renders one entry in two views: `summary` (the
+  // one-liner in the list / page header) and `page` (the full form once opened).
+  // Without a view split the full card renders twice — so emit a compact
+  // one-liner for the summary view.
+  if (view === 'summary') {
+    return (
+      <li className={styles.card}>
+        <div className={styles.header}>
+          <span className={styles.headText}>
+            <span className={styles.name}>{t('title')}</span>
+            <span className={styles.description}>{t('description')}</span>
+          </span>
+        </div>
+      </li>
+    )
+  }
   return (
     <li className={styles.card}>
       <button
