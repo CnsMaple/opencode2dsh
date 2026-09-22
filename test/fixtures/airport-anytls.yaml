@@ -1,0 +1,358 @@
+port: 7890
+mode: rule
+log-level: info
+
+proxies:
+  - name: "🇺🇸 US-01"
+    type: anytls
+    server: us01.shanhai.click
+    port: 18888
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e5
+    sni: us01.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-02"
+    type: anytls
+    server: us02.shanhai.click
+    port: 18889
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e1
+    sni: us02.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-03"
+    type: anytls
+    server: us03.shanhai.click
+    port: 18890
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e2
+    sni: us03.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-04"
+    type: anytls
+    server: us04.shanhai.click
+    port: 18891
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e3
+    sni: us04.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-05"
+    type: anytls
+    server: us05.shanhai.click
+    port: 18892
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e4
+    sni: us05.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-06"
+    type: anytls
+    server: us06.shanhai.click
+    port: 18893
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e5
+    sni: us06.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-07"
+    type: anytls
+    server: us07.shanhai.click
+    port: 18894
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e6
+    sni: us07.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-08"
+    type: anytls
+    server: us08.shanhai.click
+    port: 18895
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e7
+    sni: us08.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-09"
+    type: anytls
+    server: us09.shanhai.click
+    port: 18896
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e8
+    sni: us09.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-10"
+    type: anytls
+    server: us10.shanhai.click
+    port: 18897
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e9
+    sni: us10.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-11"
+    type: anytls
+    server: us11.shanhai.click
+    port: 18898
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e10
+    sni: us11.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-12"
+    type: anytls
+    server: us12.shanhai.click
+    port: 18899
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e11
+    sni: us12.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-13"
+    type: anytls
+    server: us13.shanhai.click
+    port: 18900
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e12
+    sni: us13.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-14"
+    type: anytls
+    server: us14.shanhai.click
+    port: 18901
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e13
+    sni: us14.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-15"
+    type: anytls
+    server: us15.shanhai.click
+    port: 18902
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e14
+    sni: us15.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-16"
+    type: anytls
+    server: us16.shanhai.click
+    port: 18903
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e15
+    sni: us16.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-17"
+    type: anytls
+    server: us17.shanhai.click
+    port: 18904
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e16
+    sni: us17.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-18"
+    type: anytls
+    server: us18.shanhai.click
+    port: 18905
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e17
+    sni: us18.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-19"
+    type: anytls
+    server: us19.shanhai.click
+    port: 18906
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e18
+    sni: us19.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-20"
+    type: anytls
+    server: us20.shanhai.click
+    port: 18907
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e19
+    sni: us20.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-21"
+    type: anytls
+    server: us21.shanhai.click
+    port: 18908
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e20
+    sni: us21.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-22"
+    type: anytls
+    server: us22.shanhai.click
+    port: 18909
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e21
+    sni: us22.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-23"
+    type: anytls
+    server: us23.shanhai.click
+    port: 18910
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e22
+    sni: us23.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-24"
+    type: anytls
+    server: us24.shanhai.click
+    port: 18911
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e23
+    sni: us24.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-25"
+    type: anytls
+    server: us25.shanhai.click
+    port: 18912
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e24
+    sni: us25.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-26"
+    type: anytls
+    server: us26.shanhai.click
+    port: 18913
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e25
+    sni: us26.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-27"
+    type: anytls
+    server: us27.shanhai.click
+    port: 18914
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e26
+    sni: us27.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-28"
+    type: anytls
+    server: us28.shanhai.click
+    port: 18915
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e27
+    sni: us28.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-29"
+    type: anytls
+    server: us29.shanhai.click
+    port: 18916
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e28
+    sni: us29.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-30"
+    type: anytls
+    server: us30.shanhai.click
+    port: 18917
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e29
+    sni: us30.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-31"
+    type: anytls
+    server: us31.shanhai.click
+    port: 18918
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e30
+    sni: us31.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-32"
+    type: anytls
+    server: us32.shanhai.click
+    port: 18919
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e31
+    sni: us32.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-33"
+    type: anytls
+    server: us33.shanhai.click
+    port: 18920
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e32
+    sni: us33.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-34"
+    type: anytls
+    server: us34.shanhai.click
+    port: 18921
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e33
+    sni: us34.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-35"
+    type: anytls
+    server: us35.shanhai.click
+    port: 18922
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e34
+    sni: us35.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-36"
+    type: anytls
+    server: us36.shanhai.click
+    port: 18923
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e35
+    sni: us36.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-37"
+    type: anytls
+    server: us37.shanhai.click
+    port: 18924
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e36
+    sni: us37.shanhai.click
+    skip-cert-verify: false
+  - name: "🇺🇸 US-38"
+    type: anytls
+    server: us38.shanhai.click
+    port: 18925
+    password: 848f43e4-6e11-4efa-9f96-84c0e16a03e37
+    sni: us38.shanhai.click
+    skip-cert-verify: false
+
+proxy-groups:
+  - name: "节点选择"
+    type: select
+    proxies:
+      - AUTO
+      - "🇺🇸 US-01"
+      - "🇺🇸 US-02"
+      - "🇺🇸 US-03"
+      - "🇺🇸 US-04"
+      - "🇺🇸 US-05"
+      - "🇺🇸 US-06"
+      - "🇺🇸 US-07"
+      - "🇺🇸 US-08"
+      - "🇺🇸 US-09"
+      - "🇺🇸 US-10"
+      - "🇺🇸 US-11"
+      - "🇺🇸 US-12"
+      - "🇺🇸 US-13"
+      - "🇺🇸 US-14"
+      - "🇺🇸 US-15"
+      - "🇺🇸 US-16"
+      - "🇺🇸 US-17"
+      - "🇺🇸 US-18"
+      - "🇺🇸 US-19"
+      - "🇺🇸 US-20"
+      - "🇺🇸 US-21"
+      - "🇺🇸 US-22"
+      - "🇺🇸 US-23"
+      - "🇺🇸 US-24"
+      - "🇺🇸 US-25"
+      - "🇺🇸 US-26"
+      - "🇺🇸 US-27"
+      - "🇺🇸 US-28"
+      - "🇺🇸 US-29"
+      - "🇺🇸 US-30"
+      - "🇺🇸 US-31"
+      - "🇺🇸 US-32"
+      - "🇺🇸 US-33"
+      - "🇺🇸 US-34"
+      - "🇺🇸 US-35"
+      - "🇺🇸 US-36"
+      - "🇺🇸 US-37"
+      - "🇺🇸 US-38"
+  - name: "自动选择"
+    type: url-test
+    proxies:
+      - "🇺🇸 US-01"
+      - "🇺🇸 US-02"
+      - "🇺🇸 US-03"
+      - "🇺🇸 US-04"
+      - "🇺🇸 US-05"
+      - "🇺🇸 US-06"
+      - "🇺🇸 US-07"
+      - "🇺🇸 US-08"
+      - "🇺🇸 US-09"
+      - "🇺🇸 US-10"
+      - "🇺🇸 US-11"
+      - "🇺🇸 US-12"
+      - "🇺🇸 US-13"
+      - "🇺🇸 US-14"
+      - "🇺🇸 US-15"
+      - "🇺🇸 US-16"
+      - "🇺🇸 US-17"
+      - "🇺🇸 US-18"
+      - "🇺🇸 US-19"
+      - "🇺🇸 US-20"
+      - "🇺🇸 US-21"
+      - "🇺🇸 US-22"
+      - "🇺🇸 US-23"
+      - "🇺🇸 US-24"
+      - "🇺🇸 US-25"
+      - "🇺🇸 US-26"
+      - "🇺🇸 US-27"
+      - "🇺🇸 US-28"
+      - "🇺🇸 US-29"
+      - "🇺🇸 US-30"
+      - "🇺🇸 US-31"
+      - "🇺🇸 US-32"
+      - "🇺🇸 US-33"
+      - "🇺🇸 US-34"
+      - "🇺🇸 US-35"
+      - "🇺🇸 US-36"
+      - "🇺🇸 US-37"
+      - "🇺🇸 US-38"
+    url: http://www.gstatic.com/generate_204
+    interval: 300

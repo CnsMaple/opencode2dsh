@@ -6,59 +6,60 @@
 
 无需 API Key。无需注册。无需额外进程。
 
-[![npm](https://img.shields.io/npm/v/@opencode2dsh%2Fdsh-plugin)](https://www.npmjs.com/package/@opencode2dsh/dsh-plugin)
-[![license](https://img.shields.io/npm/l/@opencode2dsh%2Fdsh-plugin)](https://github.com/FishBottle7/opencode2dsh/blob/master/LICENSE)
+[![license](https://img.shields.io/npm/l/@opencode2dsh%2Fdsh-plugin)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen)](https://nodejs.org)
-[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-plugin-blue)](https://github.com/FishBottle7/opencode2dsh)
+[![DSH](https://img.shields.io/badge/DSH-0.1.7--alpha.1-blue)](https://github.com/deepseek-ai/deepseek-harness)
 
 [English](README.md) | 简体中文
+
+> **Fork 说明。** 本仓库是
+> [`FishBottle7/opencode2dsh`](https://github.com/FishBottle7/opencode2dsh) 的
+> 维护分支，已适配 **DSH 0.1.7-alpha.1**，并把版本号与宿主对齐。它发布为**可直接安装的
+> 单包**（构建产物 `lib/` 已提交进仓库），因此可以从 git 直接安装、无需本地打包。
+> 具体改动见 [CHANGELOG.md](CHANGELOG.md)。
 
 </div>
 
 ---
 
 opencode2dsh 会向 DSH 注册一个原生的 `LlmAdapter`，直接流式对接
-[OpenCode Zen](https://opencode.ai/zen) 的**匿名免费通道**——也就是
-OpenCode 官方 CLI 无需登录即可使用的那批免费模型，它们会以 `opencode2dsh`
-这个常规 provider 出现在你的 DSH 模型选择器里。
+[OpenCode Zen](https://opencode.ai/zen) 的**匿名免费通道**——也就是 OpenCode 官方
+CLI 无需登录即可使用的那批免费模型，它们会以 `opencode2dsh` 这个常规 provider
+出现在你的 DSH 模型选择器里。
 
-插件发出的请求与 OpenCode CLI 的流量完全同形（相同的 User-Agent、相同的
-关联请求头），模型目录通过三级回退链保持新鲜。不用登录任何账号，也不用
-自己部署任何东西。
+插件发出的请求与 OpenCode CLI 的流量完全同形（相同的 User-Agent、相同的关联请求头），
+模型目录通过三级回退链保持新鲜。不用登录任何账号，也不用自己部署任何东西。
 
 ## 特性
 
 - **零凭据、零配置**——匿名通道不需要任何 Key；装好、重启、开聊
-- **原生 adapter，无 sidecar**——一个 npm 包，没有子进程、没有二进制、没有本地端口（旧版 Go sidecar 不随包发行，见 `legacy/`）
+- **原生 adapter，无 sidecar**——单包，没有子进程、没有二进制、没有本地端口（旧版 Go sidecar 不随包发行，见 `legacy/`）
 - **CLI 同形伪装**——请求携带 OpenCode CLI 的 User-Agent 和整套会话/请求/项目关联头，按会话派生
-- **思考等级可选**——带推理的免费模型在 DSH 模型选择器里出现思考等级选项（模型声明档位的按声明展示，其余提供 Off/Minimal/Low/Medium/High）；Off 向上游发送 `reasoning_effort: "none"` 真正停思考，不选则保持上游默认
+- **思考等级可选**——带推理的免费模型在 DSH 模型选择器里出现思考等级选项；Off 向上游发送 `reasoning_effort: "none"` 真正停思考，不选则保持上游默认
 - **实时目录 + 三级回退**——上游实时列表 ∩ 元数据判定免费，断网时依次回退到磁盘缓存与已验证的静态名单
 - **自愈能力**——启动期快速重试、周期刷新，并落盘健康快照便于排查
 - **规范的错误呈现**——上游故障（限流、鉴权、超时、传输）以分类的 finish 原因送达 DSH，重试策略始终由 DSH 掌控
 
 ## 安装
 
-**从插件市场安装**（推荐，收录后可用）：在 DSH 里打开 **设置 → 插件市场**，
-搜索 `opencode2dsh`，一键安装。
+**直接从 git 安装**（推荐——构建产物已随仓库提交，无需本地打包）：
 
-**从 npm 安装**：
+```sh
+dsh plugin --profile web add https://github.com/CnsMaple/opencode2dsh
+```
+
+也可以把同一个仓库地址粘贴到 **DSH → 设置 → 插件 → 从 git 安装**。
+
+**上游 npm**（注意：它跟随的是**原版** `FishBottle7` 包，面向更旧的 DSH，**不含**
+0.1.7 迁移）：
 
 ```sh
 dsh plugin --profile web add @opencode2dsh/dsh-plugin
 ```
 
-**从源码安装**（自行打包）：
-
-```sh
-git clone https://github.com/FishBottle7/opencode2dsh.git
-cd opencode2dsh/packages/plugin
-pnpm install && pnpm pack
-dsh plugin --profile web add ./opencode2dsh-dsh-plugin-<version>.tgz
-```
-
 **验证**：重启 `dsh web`，打开模型选择器，在 **opencode2dsh** 分组里选模型即可。
 
-需要带 web profile 的 DSH（DeepSeek Harness）；Node.js ≥ 20（DSH 能跑就满足）；
+需要 **DSH ≥ 0.1.7-alpha.1**（带 web profile）；Node.js ≥ 20（DSH 能跑就满足）；
 出站 HTTPS 需可达 `opencode.ai` 与 `models.dev`。
 
 ## 配置
@@ -99,17 +100,23 @@ https://opencode.ai/zen/v1        ← Authorization: Bearer public
      X-Session-Id, x-opencode-request, x-opencode-project
 ```
 
-- **会话关联**——session/project id 由会话首条用户消息经 SHA-256 派生
-  （同一会话稳定、不可逆推），每个请求再附带一个全新的随机 id，与 CLI 行为一致。
-- **目录回退链**——S1：实时 `GET /v1/models`；S2：models.dev 定价元数据判定
-  "免费"；S3：编译期验证的静态名单。上游故障时由磁盘缓存（约 7 天有效期）兜底。
-- **韧性**——adapter 在启动时立即注册；若首次目录拉取撞上网络尚未就绪
-  （VPN/TUN 重连、DNS 等），会以短周期重试（约 1 分钟内），随后转入常规刷新。
+- **会话关联**——session/project id 由会话首条用户消息经 SHA-256 派生（同一会话稳定、
+  不可逆推），每个请求再附带一个全新的随机 id，与 CLI 行为一致。
+- **目录回退链**——S1：实时 `GET /v1/models`；S2：models.dev 定价元数据判定"免费"；
+  S3：编译期验证的静态名单。上游故障时由磁盘缓存兜底。
+- **韧性**——adapter 在启动时立即注册；若首次目录拉取撞上网络尚未就绪，会以短周期
+  重试（约 1 分钟内），随后转入常规刷新。
 - **sidecar 模式**（`mode: sidecar`，旧版）——拉起本地 Go agent（
   [opencode2api](https://github.com/jasonxu114514/opencode2api) 的单租户移植版），
   监听 `127.0.0.1:<随机端口>`、token 鉴权，并注册标准 `llm-pi-ai` 路由。
-  **不随包发行**；请从 `legacy/agent` 构建（`go build ./cmd/agent`）并把
-  `agentPath` 指向产物。
+  **不随包发行**；请从 `legacy/agent` 构建（`go build ./cmd/agent`）并把 `agentPath`
+  指向产物。
+
+## 可选：出口 IP 池
+
+匿名通道按**出口 IP** 限流。插件内置一套可选的出口轮换池（手动代理、公共免费源、
+订阅——含 sing-box 转换的加密节点——以及固定出口），带两级健康探测、会话粘性路由与
+失败换出口。默认关闭时进程保持直连、逐字节不变。
 
 ## 健康状态与排查
 
@@ -119,24 +126,19 @@ https://opencode.ai/zen/v1        ← Authorization: Bearer public
 ~/.opencode2dsh/adapter-status.json
 ```
 
-```json
-{
-  "status": "ready",
-  "total": 64,
-  "exposed": 9,
-  "lastError": "",
-  "writtenAt": "2026-08-29T07:01:54.915Z"
-}
-```
-
 | 现象 | 可能原因与处理 |
 | --- | --- |
-| 启动页报 `Failed to load plugins … list slot "settings.plugin.item" requires options.id` | DSH 版本过旧（≤ 0.1.0-rc.6）：设置槽位契约与插件 0.3.0 的浏览器半边不匹配。升级 DSH 到 ≥ 0.1.0-rc.7（推荐最新）即可；插件 ≥ 0.3.1 已自带双形态兼容，旧版 DSH 上最多没有设置卡片，模型路由不受影响。 |
-| 只有 3 个模型 | 启动时网络未就绪，重试会在约 1 分钟内补齐；看 `adapter-status.json` 里的 `lastError`。 |
+| 启动页报 `Failed to load plugins … pending (waiting for service: settingsScope)` | 你在 DSH ≥ 0.1.7-alpha.1 上装的是**上游** npm 包（`@opencode2dsh/dsh-plugin`）。宿主已移除 `settingsScope`。改装**本 fork**（`dsh plugin --profile web add https://github.com/CnsMaple/opencode2dsh`），它使用 `configForms` 服务与 `plugins.item` 槽位。 |
+| 只有少数模型 | 启动时网络未就绪，重试会在约 1 分钟内补齐；看 `adapter-status.json` 里的 `lastError`。 |
 | `lastError: "fetch failed"` 持续出现 | 出站 HTTPS 到 `opencode.ai` 被拦截；检查代理/VPN 规则。 |
-| 对话中报限流错误 | 匿名通道按 IP 限额；切换网络节点或稍后再试。 |
-| 连接 `127.0.0.1:*` 报错 | 残留的 sidecar 路由遮蔽了 adapter；插件 ≥ 0.2.1 启动时会自动清理。 |
+| 对话中报限流错误 | 匿名通道按 IP 限额；切换网络节点、稍后再试，或启用出口 IP 池。 |
+| 连接 `127.0.0.1:*` 报错 | 残留的 sidecar 路由遮蔽了 adapter；插件启动时会自动清理。 |
 | 安装时报 `ERR_PNPM_IGNORED_BUILDS` | `pi-ai` 的传递依赖（`@google/genai`、`protobufjs`）带构建脚本，运行时并不需要。在插件市场里按提示选择允许/拒绝，或在 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds:` 下把这两项设为 `false`。 |
+
+**本 fork 已知限制**：IP 池的**图形设置卡片**在 0.1.7-alpha.1 上暂不显示。它此前通过
+`ctx.settings.register` 挂载，而 0.1.7 将该接缝改成了 entry-config 模型；设置页会在后续
+按 `configForms` 范式重接。**模型路由不受影响**——可通过 profile entry 的
+`config.ipPool` 配置 IP 池。
 
 ## 安全性
 
@@ -147,36 +149,30 @@ https://opencode.ai/zen/v1        ← Authorization: Bearer public
 ## 开发
 
 ```sh
-git clone https://github.com/FishBottle7/opencode2dsh.git
-cd opencode2dsh/packages/plugin
+git clone https://github.com/CnsMaple/opencode2dsh.git
+cd opencode2dsh
 pnpm install
-pnpm typecheck && pnpm test   # 44 个单元测试
-pnpm build                    # 打包到 lib/
+pnpm typecheck && pnpm test    # 181 个单元测试，全部可移植（无宿主专属 fixture）
+pnpm build                     # node 半  -> lib/index.js
+pnpm build:client              # 浏览器半 -> lib/client.js
 ```
+
+本仓库是单包；构建产物 `lib/` 已提交，使 `dsh plugin add` 无需本地构建即可安装。
+改完源码后重新构建并提交 `lib/`。
 
 旧版 Go sidecar 在 `legacy/agent`（`go test ./...`）。架构说明与移植记录见 `docs/`。
 
-发布：在 `packages/plugin` 执行 `pnpm pack`（prepack 会构建并同步文档）。
-
 ## 致谢
 
+- [**FishBottle7/opencode2dsh**](https://github.com/FishBottle7/opencode2dsh)——本 fork 所基于的上游项目。
 - [**opencode2api**](https://github.com/jasonxu114514/opencode2api)，作者
-  [@jasonxu114514](https://github.com/jasonxu114514)——`legacy/agent` 里的旧版
-  Go sidecar 是其匿名通道实现的移植版，目录回退链与请求伪装细节同样源自它。
-  本项目能成立，全靠它踩过的路。
+  [@jasonxu114514](https://github.com/jasonxu114514)——`legacy/agent` 里的旧版 Go
+  sidecar 是其匿名通道实现的移植版，目录回退链与请求伪装细节同样源自它。
 - [OpenCode](https://opencode.ai)——运营免费匿名 Zen 通道。
 - [@earendil-works/pi-ai](https://www.npmjs.com/package/@earendil-works/pi-ai)——adapter 模式使用的线上协议层。
 - [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh) 与
   [dsh-market](https://github.com/dsh-market/dsh-market) 社区。
 
-## 友链
-
-<div align="center">
-
-**[LinuxDo](https://linux.do)** —— 新的理想型社区
-
-</div>
-
 ## 许可证
 
-[MIT](./LICENSE) © FishBottle7
+[MIT](./LICENSE) © FishBottle7（原始作者），由 CnsMaple 作为 fork 维护。

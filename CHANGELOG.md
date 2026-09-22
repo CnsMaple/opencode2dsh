@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.1.7-alpha.1 (2026-09-22) — fork，版本号与 DSH 对齐
+
+本 fork 把插件适配到 DSH **0.1.7-alpha.1**，并把版本号与宿主保持一致。
+
+### Changed
+
+- **客户端设置迁移到新契约**：0.1.7 移除了 `@deepseek-ai/dsh-client-runtime` 及
+  其 `settingsScope` 服务，改用 `configForms`（`ctx.configForms.get('ip-pool')` +
+  `whileServed` 门控）。启动不再报 `pending (waiting for service: settingsScope)`。
+- **设置卡片槽位迁移**：由旧的 `settings.plugin.item` 改为 Plugins 页的
+  `plugins.item`（list 形态：`id` + `order` + `label`）。
+- **图标与类型来源更新**：`IconChevronDownOutline14` → `IconChevronDownOutlineRegular`；
+  `Context` / `ConfigForm` 等类型改由 `@deepseek-ai/cordis` 与
+  `dsh-client-ui-settings` / `dsh-client-ui-renderer` / `dsh-client-ui-plugin-manager`
+  的 `/client` 子路径引入。
+- **服务端去掉 `settingsNamespace()` 运行时 helper**（0.1.7 已不导出；branded
+  namespace 现在是普通字符串 id）。
+- **仓库扁平化为单包并提交构建产物 `lib/`**：可直接
+  `dsh plugin --profile web add <git url>` 安装，无需本地打包。
+
+### Fixed
+
+- **测试去掉作者机器专属依赖**：三个原本读取
+  `C:/Users/FishBottle/AppData/Local/Temp/GoProxy/...` 绝对路径真实机场样本的用例，
+  改为仓库内合成 fixture（`test/fixtures/airport-anytls.yaml`），任意机器
+  `pnpm test` 全绿（181 tests）。
+- 依赖全部对齐宿主 `0.1.7-alpha.1`。
+
+### Known limitations
+
+- IP 池的图形设置卡片在 0.1.7 的 entry-config 新范式下尚未接回（0.3.x 曾通过已
+  移除的 `ctx.settings.register` 挂载）。**模型路由不受影响**；IP 池可通过 profile
+  的 entry `config.ipPool` 配置。后续按 `configForms` 范式重接设置页。
+
 ## 0.3.3 (2026-09-18)
 
 ### Added

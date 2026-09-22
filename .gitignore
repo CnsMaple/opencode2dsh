@@ -5,8 +5,7 @@ node_modules/
 *.log
 legacy/agent/.gotmp/
 
-# Local drafts
-xiaohongshu-post.md
+# Local artifacts
 *.tgz
 
 # NOTE: lib/ (the built node + client bundles) is intentionally committed so

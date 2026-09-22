@@ -6,12 +6,18 @@
 
 No API key. No registration. No extra process.
 
-[![npm](https://img.shields.io/npm/v/@opencode2dsh%2Fdsh-plugin)](https://www.npmjs.com/package/@opencode2dsh/dsh-plugin)
-[![license](https://img.shields.io/npm/l/@opencode2dsh%2Fdsh-plugin)](https://github.com/FishBottle7/opencode2dsh/blob/master/LICENSE)
+[![license](https://img.shields.io/npm/l/@opencode2dsh%2Fdsh-plugin)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen)](https://nodejs.org)
-[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-plugin-blue)](https://github.com/FishBottle7/opencode2dsh)
+[![DSH](https://img.shields.io/badge/DSH-0.1.7--alpha.1-blue)](https://github.com/deepseek-ai/deepseek-harness)
 
 English | [简体中文](README.zh-CN.md)
+
+> **Fork note.** This is a maintained fork of
+> [`FishBottle7/opencode2dsh`](https://github.com/FishBottle7/opencode2dsh),
+> rebased for **DSH 0.1.7-alpha.1** and version-pinned to match the host. It
+> is published as a single, ready-to-install package (built `lib/` is committed),
+> so you can install straight from git — no build step. See
+> [CHANGELOG.md](CHANGELOG.md) for what the fork changed.
 
 </div>
 
@@ -22,46 +28,43 @@ opencode2dsh registers a native DSH `LlmAdapter` that streams directly from
 models OpenCode's own CLI uses without an account, served to your DSH model
 picker as a regular provider called `opencode2dsh`.
 
-Requests leave your machine looking exactly like traffic from the OpenCode
-CLI (same user agent, same correlation headers), and the model catalog stays
+Requests leave your machine looking exactly like traffic from the OpenCode CLI
+(same user agent, same correlation headers), and the model catalog stays
 fresh through a three-tier fallback chain. There is nothing to log into and
 nothing to host.
 
 ## Highlights
 
 - **Zero credential, zero setup** — the anonymous lane needs no key; install, restart, chat
-- **Native adapter, no sidecar** — one npm package, no child process, no binary, no local port (the legacy Go sidecar is not part of the published package; see `legacy/`)
+- **Native adapter, no sidecar** — a single package, no child process, no binary, no local port (the legacy Go sidecar is not part of the published package; see `legacy/`)
 - **CLI-identical disguise** — requests carry the OpenCode CLI user agent and its session/request/project header set, derived per conversation
-- **Selectable thinking levels** — reasoning-capable free models expose an effort picker in DSH's model selector (declared ladders where the model metadata provides them, Off/Minimal/Low/Medium/High otherwise); Off sends `reasoning_effort: "none"` upstream to actually stop thinking, and no selection keeps the provider default
+- **Selectable thinking levels** — reasoning-capable free models expose an effort picker in DSH's model selector; Off sends `reasoning_effort: "none"` upstream to actually stop thinking, and no selection keeps the provider default
 - **Live catalog with a fallback chain** — live upstream list ∩ free-by-metadata, falling back to offline cache and a verified static list
 - **Self-healing** — fast startup retries, periodic refresh, and a written health snapshot for diagnostics
 - **Proper error surfaces** — upstream failures (rate limit, auth, timeout, transport) arrive in DSH as classified finish reasons, and retries stay owned by DSH
 
 ## Install
 
-**From the plugin market** (recommended, once this repo is listed there):
-in DSH open **Settings → Plugin Market**, search `opencode2dsh`, one-click
-install.
+**Straight from git** (recommended — the built bundle is committed, no local build needed):
 
-**From npm**:
+```sh
+dsh plugin --profile web add https://github.com/CnsMaple/opencode2dsh
+```
+
+You can also paste the same repository URL into **DSH → Settings → Plugins →
+install from git**.
+
+**Upstream npm** (note: this tracks the *original* `FishBottle7` package, which
+targets an older DSH and does **not** include the 0.1.7 migration):
 
 ```sh
 dsh plugin --profile web add @opencode2dsh/dsh-plugin
 ```
 
-**From source** (build the tarball yourself):
+**Verify**: restart `dsh web`, open the model picker, and pick a model from the
+**opencode2dsh** group.
 
-```sh
-git clone https://github.com/FishBottle7/opencode2dsh.git
-cd opencode2dsh/packages/plugin
-pnpm install && pnpm pack
-dsh plugin --profile web add ./opencode2dsh-dsh-plugin-<version>.tgz
-```
-
-**Verify**: restart `dsh web`, open the model picker, and pick a model from
-the **opencode2dsh** group.
-
-Requires DSH (DeepSeek Harness) with a web profile; Node.js ≥ 20 (already
+Requires **DSH ≥ 0.1.7-alpha.1** with a web profile; Node.js ≥ 20 (already
 present if DSH runs); outbound HTTPS to `opencode.ai` and `models.dev`.
 
 ## Configuration
@@ -108,16 +111,23 @@ https://opencode.ai/zen/v1        ← Authorization: Bearer public
   and each request gets a fresh random id, mirroring the CLI.
 - **Catalog fallback chain** — S1: live `GET /v1/models`; S2: models.dev
   pricing metadata decides "free"; S3: a compile-time verified static list.
-  A disk cache (~7-day TTL) covers upstream outages.
+  A disk cache covers upstream outages.
 - **Resilience** — the adapter registers immediately at startup; if the first
-  catalog fetch races your network (VPN/TUN reconnects, DNS), the plugin
-  retries on a short cadence (~1 min) before settling into the periodic
-  refresh.
+  catalog fetch races your network, the plugin retries on a short cadence
+  (~1 min) before settling into the periodic refresh.
 - **Sidecar mode** (`mode: sidecar`, legacy) — spawns a local Go agent (a
   single-tenant port of [opencode2api](https://github.com/jasonxu114514/opencode2api))
   on `127.0.0.1:<random>`, token-authenticated, and registers a standard
   `llm-pi-ai` route. **Not part of the published package**; build it from
   `legacy/agent` (`go build ./cmd/agent`) and point `agentPath` at the binary.
+
+## Optional: exit-IP pool
+
+The anonymous lane is rate-limited per **exit IP**. The plugin ships an opt-in
+rotating egress pool (manual proxies, free public sources, subscriptions —
+including sing-box-converted encrypted nodes — and a pinned exit) with
+two-tier health probing, session-sticky routing and failure rotation. Disabled
+by default, the process stays on a direct connection.
 
 ## Health & troubleshooting
 
@@ -127,66 +137,56 @@ The plugin writes a health snapshot after every refresh round:
 ~/.opencode2dsh/adapter-status.json
 ```
 
-```json
-{
-  "status": "ready",
-  "total": 64,
-  "exposed": 9,
-  "lastError": "",
-  "writtenAt": "2026-08-29T07:01:54.915Z"
-}
-```
-
 | Symptom | Likely cause & fix |
 | --- | --- |
-| Boot screen shows `Failed to load plugins … list slot "settings.plugin.item" requires options.id` | Your DSH is too old (≤ 0.1.0-rc.6): the settings-slot contract predates the plugin 0.3.0 browser half. Upgrade DSH to ≥ 0.1.0-rc.7 (latest recommended). Plugin ≥ 0.3.1 registers in either slot shape, so on old DSH you lose at most the settings card — model routing is unaffected. |
-| Only 3 models | Startup fetch raced your network; retries land within ~1 min. Check `adapter-status.json` for `lastError`. |
+| Boot screen: `Failed to load plugins … pending (waiting for service: settingsScope)` | You are running the **upstream** npm package (`@opencode2dsh/dsh-plugin`) on DSH ≥ 0.1.7-alpha.1. `settingsScope` was removed from the host. Install **this fork** (`dsh plugin --profile web add https://github.com/CnsMaple/opencode2dsh`), which uses the `configForms` service and the `plugins.item` slot. |
+| Only a few models | Startup fetch raced your network; retries land within ~1 min. Check `adapter-status.json` for `lastError`. |
 | `lastError: "fetch failed"` persisting | Outbound HTTPS to `opencode.ai` blocked; check proxy/VPN rules. |
-| Rate-limit errors in chat | The anonymous lane is quota-per-IP; switch network node or wait. |
-| Connection error to `127.0.0.1:*` | A stale sidecar route shadows the adapter; plugin ≥ 0.2.1 removes it at startup. |
-| Install fails with `ERR_PNPM_IGNORED_BUILDS` | A transitive dependency of `pi-ai` (`@google/genai`, `protobufjs`) has build scripts that are not needed at runtime. Approve-or-decline them via the plugin market, or set both to `false` under `allowBuilds:` in the profile's `pnpm-workspace.yaml`. |
+| Rate-limit errors in chat | The anonymous lane is quota-per-IP; switch network node, wait, or enable the exit-IP pool. |
+| Connection error to `127.0.0.1:*` | A stale sidecar route shadows the adapter; the plugin removes it at startup. |
+| Install fails with `ERR_PNPM_IGNORED_BUILDS` | A transitive dependency of `pi-ai` (`@google/genai`, `protobufjs`) has build scripts not needed at runtime. Approve-or-decline via the plugin market, or set both to `false` under `allowBuilds:` in the profile's `pnpm-workspace.yaml`. |
+
+**Known limitation (fork)**: the IP-pool **settings card** is not shown on
+DSH 0.1.7-alpha.1 yet. It used to mount through `ctx.settings.register`, which
+0.1.7 replaced with the entry-config model; the card will be rewired to
+`configForms` in a follow-up. Model routing is unaffected — configure the pool
+via the profile entry's `config.ipPool`.
 
 ## Security
 
-- No secrets involved: the anonymous lane's key is the literal string `public`; nothing is stored, nothing telemetry.
-- Install paths restricted to `lib/` only; no build scripts run from dependencies.
+- No secrets involved: the anonymous lane's key is the literal string `public`; nothing is stored, no telemetry.
+- Install paths restricted to `lib/`; no build scripts run from dependencies.
 - All requests go directly from your machine to `opencode.ai` / `models.dev`.
 
 ## Development
 
 ```sh
-git clone https://github.com/FishBottle7/opencode2dsh.git
-cd opencode2dsh/packages/plugin
+git clone https://github.com/CnsMaple/opencode2dsh.git
+cd opencode2dsh
 pnpm install
-pnpm typecheck && pnpm test   # 44 unit tests
-pnpm build                    # bundle to lib/
+pnpm typecheck && pnpm test    # 181 unit tests, all portable (no host-specific fixtures)
+pnpm build                     # node half  -> lib/index.js
+pnpm build:client              # browser half -> lib/client.js
 ```
+
+The repo is a single package; the built `lib/` is committed so `dsh plugin add`
+works without a build. After changing sources, rebuild and commit `lib/`.
 
 The legacy Go sidecar lives in `legacy/agent` (`go test ./...`). Architecture
 notes and the porting record live in `docs/`.
 
-Releasing: `pnpm pack` in `packages/plugin` (prepack builds and syncs docs).
-
 ## Acknowledgments
 
+- [**FishBottle7/opencode2dsh**](https://github.com/FishBottle7/opencode2dsh) — the upstream project this fork builds on.
 - [**opencode2api**](https://github.com/jasonxu114514/opencode2api) by
-  [@jasonxu114514](https://github.com/jasonxu114514) — the legacy Go sidecar
-  in `legacy/agent` is a port of its anonymous-lane implementation, and the
-  catalog fallback chain and request-disguise details are derived from it.
-  This project stands on its shoulders.
+  [@jasonxu114514](https://github.com/jasonxu114514) — the legacy Go sidecar in
+  `legacy/agent` is a port of its anonymous-lane implementation, and the catalog
+  fallback chain and request-disguise details are derived from it.
 - [OpenCode](https://opencode.ai) — for running the free anonymous Zen lane.
 - [@earendil-works/pi-ai](https://www.npmjs.com/package/@earendil-works/pi-ai) — the wire layer used by adapter mode.
 - [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh) and the
   [dsh-market](https://github.com/dsh-market/dsh-market) community.
 
-## Friends
-
-<div align="center">
-
-**[LinuxDo](https://linux.do)** — 新的理想型社区 / a new ideal community
-
-</div>
-
 ## License
 
-[MIT](./LICENSE) © FishBottle7
+[MIT](./LICENSE) © FishBottle7 (original), maintained as a fork by CnsMaple.
